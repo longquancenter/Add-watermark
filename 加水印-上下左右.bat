@@ -1,24 +1,59 @@
 @echo off
+REM 设置代码页为UTF-8
 chcp 65001 > nul 2>&1
 setlocal enabledelayedexpansion
 
-REM Prompt user for source directory
-set /p "source_dir=Source file directory (default is current directory): "
+REM 设置ffmpeg可执行文件的名称和下载链接
+set "ffmpeg_executable=ffmpeg.exe"
+set "ffmpeg_download_url=https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+
+REM 检测是否已安装ffmpeg
+where %ffmpeg_executable%
+if %errorlevel% neq 0 (
+    echo 未找到 %ffmpeg_executable% 可执行文件。尝试下载并使用。
+
+    REM 下载ffmpeg压缩包
+    bitsadmin /transfer download_ffmpeg /priority normal %ffmpeg_download_url% ffmpeg-release-essentials.zip
+    
+    REM 等待下载完成
+    bitsadmin /complete download_ffmpeg
+    
+    REM 解压缩ffmpeg压缩包
+    powershell Expand-Archive -Path .\ffmpeg-release-essentials.zip -DestinationPath .
+    
+    REM 将ffmpeg.exe移动到脚本目录
+    move .\ffmpeg-*\bin\ffmpeg.exe .\
+    
+    REM 删除下载的文件和解压缩的文件夹
+    del ffmpeg-release-essentials.zip
+    rmdir /s /q ffmpeg-*
+    
+    REM 再次检测是否已安装
+    where %ffmpeg_executable%
+    if %errorlevel% neq 0 (
+        echo 下载失败，请手动安装 %ffmpeg_executable%。
+        pause
+        exit /b 1
+    )
+)
+
+REM 提示用户输入源文件目录
+set /p "source_dir=源文件目录（默认为当前目录）: "
 if not defined source_dir set "source_dir=."
 
-REM Prompt user for watermark files directory
-set /p "watermark_dir=The watermark directory (default is current directory): "
+REM 提示用户输入水印文件目录
+set /p "watermark_dir=水印文件目录（默认为当前目录下的wtm文件夹）: "
 if not defined watermark_dir set "watermark_dir=.\wtm"
 
-REM Prompt user for output directory name
-set /p "output_dir_name=Output directory name (default is 'output'): "
+REM 提示用户输入输出目录名称
+set /p "output_dir_name=输出目录名称（默认为'output'）: "
 if not defined output_dir_name set "output_dir_name=output"
 
-REM Set configurable parameters
+REM 设置可配置的参数
 set "watermark1=!watermark_dir!\logo.png"
 set "watermark2=!watermark_dir!\jinqiu.png"
 set "output_dir=%source_dir%\!output_dir_name!"
-set "file_extension=jpg"  REM Change the file extension as needed
+set "file_extension=jpg"  REM 根据需要更改文件扩展名
 set "scale_factor1=0.6"
 set "left_offset1=0.03"
 set "right_offset1=0.03"
@@ -26,7 +61,7 @@ set "scale_factor2=0.65"
 set "offset_x2=0.04"
 set "offset_y2=0.04"
 
-REM Call functions
+REM 调用函数
 call :CheckFileExistence "!watermark1!"
 call :CheckFileExistence "!watermark2!"
 call :ProcessImagesWithWatermark1
@@ -45,7 +80,7 @@ pause
 goto :EOF
 
 :ProcessImagesWithWatermark1
-REM Process images with watermark1...
+REM 处理带有水印1的图像...
 if not exist "%output_dir%" mkdir "%output_dir%"
 
 for %%i in ("%source_dir%\*.%file_extension%") do (
@@ -61,7 +96,7 @@ for %%i in ("%source_dir%\*.%file_extension%") do (
 goto :EOF
 
 :ProcessImagesWithWatermark2
-REM Process images with watermark2...
+REM 处理带有水印2的图像...
 if not exist "%output_dir%\*.%file_extension%" (
     echo 错误：output目录下没有 %file_extension% 文件
     pause
